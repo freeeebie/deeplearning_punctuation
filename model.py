@@ -140,6 +140,7 @@ class MultiLayerLSTM(ModelBase):
         num_classes = self.model.output_size
         batch_size = len(input_batch)
 
+        tf.reset_default_graph()
         X = tf.placeholder(tf.int32, [None, self.seq_length])  # X data
         Y = tf.placeholder(tf.int32, [None, self.seq_length])  # Y label
 
