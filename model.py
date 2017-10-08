@@ -154,13 +154,15 @@ class MultiLayerLSTM(ModelBase):
         model = None
         # print(X_one_hot)
         if self.model.bi_mul != 2:
-            cell1 = tf.nn.rnn_cell.BasicLSTMCell(num_units=hidden_size, state_is_tuple=True)
-            cell1 = tf.nn.rnn_cell.DropoutWrapper(cell1, output_keep_prob=0.5)
-            cell2 = tf.nn.rnn_cell.BasicLSTMCell(num_units=hidden_size, state_is_tuple=True)
+            with tf.variable_scope('cell_def'):
+                cell1 = tf.nn.rnn_cell.BasicLSTMCell(num_units=hidden_size, state_is_tuple=True)
+                # cell1 = tf.nn.rnn_cell.DropoutWrapper(cell1, output_keep_prob=0.5)
+                cell2 = tf.nn.rnn_cell.BasicLSTMCell(num_units=hidden_size, state_is_tuple=True)
 
-            multi_cell = tf.nn.rnn_cell.MultiRNNCell([cell1, cell2])
-            outputs, _states = tf.nn.dynamic_rnn(
-                multi_cell, X_one_hot,  dtype=tf.float32, sequence_length=Seqlen)
+                multi_cell = tf.nn.rnn_cell.MultiRNNCell([cell1, cell2])
+            with tf.variable_scope('rnn_def'):
+                outputs, _states = tf.nn.dynamic_rnn(
+                    multi_cell, X_one_hot,  dtype=tf.float32, sequence_length=Seqlen)
             print(outputs)
             model = tf.layers.dense(outputs, num_classes, activation=None)
 
