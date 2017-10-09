@@ -7,7 +7,8 @@ import model
 print("=== start prediction of puncuation ===")
 rawdata = data.read_data("data/4BE00006.txt")
 
-input_chars, output_chars = data.make_dic(rawdata)
+dic_size = 200
+input_chars, output_chars = data.make_dic(rawdata, dic_size)
 
 text = rawdata
 

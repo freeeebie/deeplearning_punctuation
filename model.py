@@ -3,13 +3,6 @@ import numpy as np
 import utils
 import data
 
-class DataSet():
-    def __init__(self, input_batch, input_source, target_batch, seq_lens):
-        self.input_batch = input_batch
-        self.input_source = input_source
-        self.target_batch = target_batch
-        self.seq_lens = seq_lens
-
 def make_sequences(input_data, char2vec, output_char2vec, seq_length, make_valid=True):
     total_frames = 1 if (len(input_data) < seq_length) else int(len(input_data) / seq_length)
 
@@ -83,6 +76,26 @@ def make_weight_mat(input_batch, seq_lens):
         weight_mat.append(weight_list)
     return weight_mat
 
+def compare_sentence(output_char2vec, target, input_source, prediction, printable):
+    result_output = ([output_char2vec.r_char_dict[c] for c in prediction])
+    target_output = ([output_char2vec.r_char_dict[c] for c in target])
+
+    if printable == True:
+        result_str = data.apply_punc("".join(input_source), result_output)
+        target_str = data.apply_punc("".join(input_source), target_output)
+
+        print("Target:    ", target_str)
+        print("Prediction:", result_str)
+    return result_output, target_output
+
+
+class DataSet():
+    def __init__(self, input_batch, input_source, target_batch, seq_lens):
+        self.input_batch = input_batch
+        self.input_source = input_source
+        self.target_batch = target_batch
+        self.seq_lens = seq_lens
+
 class ModelConfiguration():
     def __init__(self, input_size, hidden_size, output_size, batch_size=1, layers=1, bi=False):
 
@@ -117,17 +130,6 @@ class MultiLayerLSTM(ModelBase):
         self.sess = None
         self.seq_length = seq_length
 
-    def compare_sentence(self, target, input_source, prediction, printable):
-        result_output = ([self.output_char2vec.r_char_dict[c] for c in prediction])
-        target_output = ([self.output_char2vec.r_char_dict[c] for c in target])
-
-        if printable == True:
-            result_str = data.apply_punc("".join(input_source), result_output)
-            target_str = data.apply_punc("".join(input_source), target_output)
-
-            print("Target:    ", target_str)
-            print("Prediction:", result_str)
-        return result_output, target_output
 
     def run(self):
         training_dataset, valid_dataset = make_sequences(self.input, self.char2vec, self.output_char2vec, self.seq_length)
@@ -137,7 +139,6 @@ class MultiLayerLSTM(ModelBase):
         seq_lens = training_dataset.seq_lens
 
         hidden_size = self.model.hidden_size
-        num_classes = self.model.output_size
         batch_size = len(input_batch)
 
         tf.reset_default_graph()
@@ -148,8 +149,7 @@ class MultiLayerLSTM(ModelBase):
 
         Weight = tf.placeholder(tf.float32, [None, None])  # Weight
         # X_one_hot = tf.one_hot(X, hidden_size)  # one hot: 1 -> 0 1 0 0 0 0 0 0 0 0
-        X_one_hot = tf.one_hot(X, 50)  # one hot: 1 -> 0 1 0 0 0 0 0 0 0 0
-
+        X_one_hot = tf.one_hot(X, self.model.input_size)  # one hot: 1 -> 0 1 0 0 0 0 0 0 0 0
 
         model = None
         # print(X_one_hot)
@@ -164,7 +164,7 @@ class MultiLayerLSTM(ModelBase):
                 outputs, _states = tf.nn.dynamic_rnn(
                     multi_cell, X_one_hot,  dtype=tf.float32, sequence_length=Seqlen)
             print(outputs)
-            model = tf.layers.dense(outputs, num_classes, activation=None)
+            model = tf.layers.dense(outputs, self.model.output_size, activation=None)
 
         else:
             forward = tf.contrib.rnn.BasicLSTMCell(num_units=hidden_size, state_is_tuple=True)
@@ -172,7 +172,7 @@ class MultiLayerLSTM(ModelBase):
 
             outputs, _ = tf.nn.bidirectional_dynamic_rnn(forward, backward, inputs=X_one_hot, dtype=tf.float32, sequence_length=Seqlen)
             print(outputs[-1].dtype.base_dtype)
-            model = tf.layers.dense(outputs[-1], num_classes, activation=None )
+            model = tf.layers.dense(outputs[-1], self.model.output_size, activation=None )
 
 
         cost = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(logits=model, labels=Y))
@@ -206,7 +206,7 @@ class MultiLayerLSTM(ModelBase):
                 target_output_mat = []
                 # print(result)
                 for index, sq in enumerate(result):
-                    result_output, target_output = self.compare_sentence(valid_dataset.target_batch[index], valid_dataset.input_source[index], sq, True if epoch == 999 else False)
+                    result_output, target_output = compare_sentence(output_char2vec, valid_dataset.target_batch[index], valid_dataset.input_source[index], sq, True if epoch == 999 else False)
                     result_output_mat.append(result_output)
                     target_output_mat.append(target_output)
 
@@ -224,7 +224,7 @@ class MultiLayerLSTM(ModelBase):
         # print(result)
 
         for index, sq in enumerate(result):
-            result_output, target_output = self.compare_sentence(test_dataset.target_batch[index],
+            result_output, target_output = compare_sentence(output_char2vec, test_dataset.target_batch[index],
                                                                  test_dataset.input_source[index], sq, printable=True)
 
 

@@ -64,11 +64,11 @@ def get_sorted_char_map(data):
     sorted_char_map = sorted(char_map.items(), key=operator.itemgetter(1), reverse=True)
     return sorted_char_map
 
-def make_dic(data):
+def make_dic(data, dic_size = 50):
     sorted_char_map = get_sorted_char_map(data)
 
     input_chars = []
-    for i in range(min(50,len(sorted_char_map))):
+    for i in range(min(dic_size ,len(sorted_char_map))):
         input_chars.append((sorted_char_map[i])[0])
     # print(input_chars)
 
