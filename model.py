@@ -228,11 +228,7 @@ class MultiLayerLSTM(ModelBase):
                 target_output_mat = []
                 # print(result)
                 for index, sq in enumerate(result):
-<<<<<<< HEAD
                     result_output, target_output = compare_sentence(self.output_char2vec, valid_dataset.target_batch[index], valid_dataset.input_source[index], sq, True if epoch == (n_epoch - 1) else False)
-=======
-                    result_output, target_output = compare_sentence(self.output_char2vec, valid_dataset.target_batch[index], valid_dataset.input_source[index], sq, True if epoch == 999 else False)
->>>>>>> e75077502d7f5e3a8c85964b3c33fcc8c1bb95d4
                     result_output_mat.append(result_output)
                     target_output_mat.append(target_output)
 
