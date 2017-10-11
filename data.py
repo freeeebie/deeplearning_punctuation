@@ -1,6 +1,13 @@
 from bs4 import BeautifulSoup
 import operator
 
+class DataSet():
+    def __init__(self, input_batch, input_source, target_batch, seq_lens):
+        self.input_batch = input_batch
+        self.input_source = input_source
+        self.target_batch = target_batch
+        self.seq_lens = seq_lens
+
 def read_data(path):
     doc = BeautifulSoup(open(path,'rb'), 'html.parser')
     count = 0
@@ -9,8 +16,9 @@ def read_data(path):
         count = count + 1
         for y in x.getText():
             data.append(y)
-        # if count == 20:
-        #     break
+        data.append(' ')
+        if count == 50:
+            break
     print("length of paragraph: ", count)
     return data
 
@@ -74,6 +82,72 @@ def make_dic(data, dic_size = 50):
 
     output_chars = ['<nop>', ',', '.']
     return input_chars, output_chars
+
+def make_sequences(input_data, char2vec, output_char2vec, seq_length, make_valid=True, modeltype=None):
+    total_frames = 1 if (len(input_data) < seq_length) else int(len(input_data) / seq_length) + 1
+
+    training_dataset = None
+    valid_dataset = None
+
+    if make_valid == True:
+        frames_training = int(total_frames * 0.9)
+        test_case = ['training', 'validation']
+    else:
+        frames_training = total_frames
+        test_case = ['training']
+
+    for case in test_case:
+        input_batch = []
+        output_batch = []
+        target_batch = []
+
+        input_source = []
+
+        seqlens = []
+
+        if case == 'training':
+            start = 0
+            end = frames_training
+        else:
+            start = frames_training + 1
+            end = total_frames
+
+        print(start, end)
+        for i in range(start, end):
+            input_str, output_str = extract_punc(input_data[i * seq_length: (i + 1) * seq_length],
+                                                      char2vec.char_dict, output_char2vec.char_dict)
+            # print(i, input_str, '->', output_str)
+            input_source.append(input_str)
+            x = []
+            for ch in input_str:
+                if ch in char2vec.char_dict:
+                    x.append(char2vec.char_dict[ch])
+                else:
+                    x.append(char2vec.char_dict['<unk>'])
+            y = [output_char2vec.char_dict[c] for c in output_str]  # y str to index
+
+            seqlens.append(len(x))
+
+            if len(x) != seq_length:
+                diff = seq_length - len(x)
+                for _ in range(diff):
+                    x.append(0)
+                    # input_str.append(' ')
+            if len(y) != seq_length:
+                diff = seq_length - len(y)
+                for _ in range(diff):
+                    y.append(0)
+                    input_str.append(' ')
+
+            # print(y)
+            input_batch.append(x)
+            target_batch.append(y)
+
+        if case == 'training':
+            training_dataset = DataSet(input_batch, input_source, target_batch, seqlens)
+        else:
+            valid_dataset = DataSet(input_batch, input_source, target_batch, seqlens)
+    return training_dataset, valid_dataset
 
 if __name__ == "__main__":
     data = list("5보다 작은 자연수는 1, 2, 3, 4이다.")

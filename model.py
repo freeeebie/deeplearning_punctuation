@@ -3,8 +3,8 @@ import numpy as np
 import utils
 import data
 
-def make_sequences(input_data, char2vec, output_char2vec, seq_length, make_valid=True):
-    total_frames = 1 if (len(input_data) < seq_length) else int(len(input_data) / seq_length)
+def make_sequences(input_data, char2vec, output_char2vec, seq_length, make_valid=True, modeltype=None):
+    total_frames = 1 if (len(input_data) < seq_length) else int(len(input_data) / seq_length) + 1
 
     training_dataset = None
     valid_dataset = None
@@ -29,6 +29,7 @@ def make_sequences(input_data, char2vec, output_char2vec, seq_length, make_valid
             start = frames_training + 1
             end = total_frames
 
+        print(start, end)
         for i in range(start, end):
             input_str, output_str = data.extract_punc(input_data[i * seq_length: (i + 1) * seq_length],
                                                       char2vec.char_dict, output_char2vec.char_dict)
@@ -63,12 +64,12 @@ def make_sequences(input_data, char2vec, output_char2vec, seq_length, make_valid
             valid_dataset = DataSet(input_batch, input_source, target_batch, seqlens)
     return training_dataset, valid_dataset
 
-def make_weight_mat(input_batch, seq_lens):
+def make_weight_mat(input_batch, seq_lens, seq_length):
     weight_mat = []
     for i in range(len(input_batch)):
         weight_list = []
         # Todo: need refactoring
-        for j in range(30):
+        for j in range(seq_length):
             if j < seq_lens[i]:
                 weight_list.append(1)
             else:
@@ -123,7 +124,7 @@ class ModelBase():
         self.input = input
 
 class MultiLayerLSTM(ModelBase):
-    def __init__(self, model, char2vec=None, output_char2vec=None, input=None, seq_length=30):
+    def __init__(self, model, char2vec=None, output_char2vec=None, input=None, seq_length=100):
         print('****** MultiLayer LSTM Initialize ******')
         ModelBase.__init__(self, model, char2vec, output_char2vec, input)
         self.prediction = None
@@ -153,6 +154,7 @@ class MultiLayerLSTM(ModelBase):
 
         model = None
         # print(X_one_hot)
+        cost = None
         if self.model.bi_mul != 2:
             with tf.variable_scope('cell_def'):
                 cell1 = tf.nn.rnn_cell.BasicLSTMCell(num_units=hidden_size, state_is_tuple=True)
@@ -164,35 +166,55 @@ class MultiLayerLSTM(ModelBase):
                 outputs, _states = tf.nn.dynamic_rnn(
                     multi_cell, X_one_hot,  dtype=tf.float32, sequence_length=Seqlen)
             print(outputs)
+            print(outputs)
             model = tf.layers.dense(outputs, self.model.output_size, activation=None)
+            cost = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(logits=model, labels=Y))
+
+
 
         else:
             forward = tf.contrib.rnn.BasicLSTMCell(num_units=hidden_size, state_is_tuple=True)
             backward = tf.contrib.rnn.BasicLSTMCell(num_units=hidden_size, state_is_tuple=True)
 
-            outputs, _ = tf.nn.bidirectional_dynamic_rnn(forward, backward, inputs=X_one_hot, dtype=tf.float32, sequence_length=Seqlen)
-            print(outputs[-1].dtype.base_dtype)
-            model = tf.layers.dense(outputs[-1], self.model.output_size, activation=None )
+            outputs, final_states = tf.nn.bidirectional_dynamic_rnn(forward, backward, inputs=X_one_hot, dtype=tf.float32, sequence_length=Seqlen)
 
+            output_fw, output_bw = outputs
+            t_outputs = tf.concat([output_fw, output_bw], axis=2)  # concatenate forward and backward final states
 
-        cost = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(logits=model, labels=Y))
+            print(output_fw)
+            print(t_outputs)
+            outputs = tf.reshape(t_outputs, [-1, 2 * hidden_size])
+            print(outputs)
+
+            model = tf.layers.dense(t_outputs, self.model.output_size, activation=None)
+
+            # final_fw = tf.concat(final_states[0], axis=1)
+            # final_bw = tf.concat(final_states[1], axis=1)
+            # t_outputs = tf.concat([final_fw, final_bw], axis=1)  # concatenate forward and backward final states
+            # print(t_outputs)
+            # model = tf.layers.dense(inputs=t_outputs, units=self.model.output_size,
+            #                                   kernel_initializer=tf.random_normal_initializer,
+            #                                   bias_initializer=tf.random_normal_initializer)
+
+            cost = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(logits=model, labels=Y))
 
         optimizer = tf.train.AdamOptimizer(learning_rate=0.001).minimize(cost)
 
-        weights = make_weight_mat(input_batch, seq_lens)
+        weights = make_weight_mat(input_batch, seq_lens, self.seq_length)
 
         prediction = tf.argmax(model, axis=2) # axis 2 ??
         target = tf.cast(Y, tf.int64) #Y #tf.argmax(Y, axis=1) # axis 2 ??
 
         sess = tf.Session()
         sess.run(tf.global_variables_initializer())
-        for epoch in range(1000):
+        n_epoch = 1000
+        for epoch in range(n_epoch):
             l, loss = sess.run([optimizer, cost], feed_dict={X:input_batch, Y:target_batch, Weight:weights, Seqlen:seq_lens})
 
             if epoch%25 == 24:
                 print("epoch #", epoch)
 
-                valid_weights = make_weight_mat(valid_dataset.input_batch, valid_dataset.seq_lens)
+                valid_weights = make_weight_mat(valid_dataset.input_batch, valid_dataset.seq_lens, self.seq_length)
 
                 result = sess.run(prediction, feed_dict={X: valid_dataset.input_batch, Y:valid_dataset.target_batch, Weight:valid_weights, Seqlen:valid_dataset.seq_lens})
                 # print(result)
@@ -206,7 +228,11 @@ class MultiLayerLSTM(ModelBase):
                 target_output_mat = []
                 # print(result)
                 for index, sq in enumerate(result):
-                    result_output, target_output = compare_sentence(output_char2vec, valid_dataset.target_batch[index], valid_dataset.input_source[index], sq, True if epoch == 999 else False)
+<<<<<<< HEAD
+                    result_output, target_output = compare_sentence(self.output_char2vec, valid_dataset.target_batch[index], valid_dataset.input_source[index], sq, True if epoch == (n_epoch - 1) else False)
+=======
+                    result_output, target_output = compare_sentence(self.output_char2vec, valid_dataset.target_batch[index], valid_dataset.input_source[index], sq, True if epoch == 999 else False)
+>>>>>>> e75077502d7f5e3a8c85964b3c33fcc8c1bb95d4
                     result_output_mat.append(result_output)
                     target_output_mat.append(target_output)
 
@@ -214,7 +240,7 @@ class MultiLayerLSTM(ModelBase):
 
         test_sentence = list("예를 들어, 이와 같은 경우 불법이 확실하다.")
         test_dataset, _ = make_sequences(test_sentence, self.char2vec, self.output_char2vec, self.seq_length, make_valid=False)
-        weights = make_weight_mat(test_dataset.input_batch, test_dataset.seq_lens)
+        weights = make_weight_mat(test_dataset.input_batch, test_dataset.seq_lens, self.seq_length)
 
         # print(test_dataset.input_batch)
         # print(test_dataset.target_batch)
@@ -224,7 +250,7 @@ class MultiLayerLSTM(ModelBase):
         # print(result)
 
         for index, sq in enumerate(result):
-            result_output, target_output = compare_sentence(output_char2vec, test_dataset.target_batch[index],
+            result_output, target_output = compare_sentence(self.output_char2vec, test_dataset.target_batch[index],
                                                                  test_dataset.input_source[index], sq, printable=True)
 
 

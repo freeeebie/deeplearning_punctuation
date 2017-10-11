@@ -3,11 +3,16 @@ import numpy as np
 import data
 import utils
 import model
+import models.rnns as rnns
+import models.seq2seq as s2s
+
+import models.modelbase as base
+
 
 print("=== start prediction of puncuation ===")
 rawdata = data.read_data("data/4BE00006.txt")
 
-dic_size = 200
+dic_size = 100
 input_chars, output_chars = data.make_dic(rawdata, dic_size)
 
 text = rawdata
@@ -20,9 +25,14 @@ output_size = output_char2vec.size
 # make and run multi layer LSTM network
 hidden_size = 128
 
-rnn_config = model.ModelConfiguration(input_size, hidden_size, output_size, layers=2, bi=False)
-base = model.MultiLayerLSTM(rnn_config, char2vec, output_char2vec, text)
+
+rnn_config = base.ModelConfiguration(input_size, hidden_size, output_size, epoch=500)
+
+# base = rnns.MultiLayerLSTM(rnn_config, char2vec, output_char2vec, text, seq_length=100, type="multi")
+# base.run()
+# base = rnns.MultiLayerLSTM(rnn_config, char2vec, output_char2vec, text, seq_length=100, type="bimul")
+# base.run()
+
+base = s2s.Seq2Seq(rnn_config, char2vec, output_char2vec, text, seq_length=100, type="bimul")
 base.run()
-
-
 
