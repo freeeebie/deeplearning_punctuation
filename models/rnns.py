@@ -97,7 +97,7 @@ class MultiLayerLSTM(base.ModelBase):
                     print("prediction sentence:", prediction_output[1])
 
         test_sentences = data.read_data("data/test/BHXX0035.txt", 30)
-        test_dataset, _ = data.make_sequences(test_sentence, self.char2vec, self.output_char2vec, self.seq_length, make_valid=False)
+        test_dataset, _ = data.make_sequences(test_sentences, self.char2vec, self.output_char2vec, self.seq_length, make_valid=False)
 
         result = sess.run(prediction, feed_dict={X: test_dataset.input_batch,
                                                       Y: test_dataset.target_batch,
