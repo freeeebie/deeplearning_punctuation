@@ -126,7 +126,6 @@ def make_sequences(input_data, char2vec, output_char2vec, seq_length, make_valid
             start = frames_training + 1
             end = total_frames
 
-        print(start, end)
         for i in range(start, end):
             input_str, output_str = extract_punc(input_data[i * seq_length: (i + 1) * seq_length],
                                                       char2vec.char_dict, output_char2vec.char_dict)

@@ -62,32 +62,35 @@ class MultiLayerLSTM(base.ModelBase):
 
         optimizer = tf.train.AdamOptimizer(learning_rate=0.001).minimize(cost)
 
-        target = tf.cast(Y, tf.int64)
-
         sess = tf.Session()
         sess.run(tf.global_variables_initializer())
 
+        print('------------ Training ------------ ')
         for epoch in range(self.modelconfig.epoch):
-            l, loss = sess.run([optimizer, cost], feed_dict={X: input_batch,
+            _, loss = sess.run([optimizer, cost], feed_dict={X: input_batch,
                                                              Y: target_batch,
                                                              Seqlen: seq_lens,
                                                              keep_prob: 0.8})
             if epoch % 25 == 24:
-                print("epoch #", epoch)
-
                 result = sess.run(prediction, feed_dict={X: valid_dataset.input_batch,
                                                          Y: valid_dataset.target_batch,
                                                          Seqlen: valid_dataset.seq_lens,
                                                          keep_prob: 1})
                 accuracy = tf.reduce_mean(tf.cast(tf.equal(result, tf.cast(Y, tf.int64)), tf.float32))
-                print(sess.run(accuracy, feed_dict={Y: valid_dataset.target_batch}))
+                accuracy_ret = sess.run(accuracy, feed_dict={Y: valid_dataset.target_batch})
 
                 prediction_output_mat = []
                 target_output_mat = []
 
-                for index, sq in enumerate(result):
+                print('Epoch:', '%04d  ' % (epoch + 1),
+                      'accuracy =', '{:.6f}  '.format(accuracy_ret),
+                      'cost =', '{:.6f}'.format(loss))
+
+                for index, predict_sequence in enumerate(result):
                     target_output, prediction_output = data.compare_sentence(self.output_char2vec,
-                        valid_dataset.target_batch[index], valid_dataset.input_source[index], sq)
+                        valid_dataset.target_batch[index],
+                        valid_dataset.input_source[index],
+                        predict_sequence)
                     prediction_output_mat.append(prediction_output[0])
                     target_output_mat.append(target_output[0])
 
@@ -95,7 +98,9 @@ class MultiLayerLSTM(base.ModelBase):
                 if epoch == self.modelconfig.epoch - 1:
                     print("target sentence:    ", target_output[1])
                     print("prediction sentence:", prediction_output[1])
+                print('')
 
+        print('------------ Testing ------------ ')
         test_sentences = data.read_data("data/test/BHXX0035.txt", 30)
         test_dataset, _ = data.make_sequences(test_sentences, self.char2vec, self.output_char2vec, self.seq_length, make_valid=False)
 
@@ -104,9 +109,20 @@ class MultiLayerLSTM(base.ModelBase):
                                                       Seqlen: test_dataset.seq_lens,
                                                       keep_prob: 1})
 
-        for index, sq in enumerate(result):
-            target_output, prediction_output = data.compare_sentence(self.output_char2vec, test_dataset.target_batch[index],
-                                                                 test_dataset.input_source[index], sq)
+        accuracy = tf.reduce_mean(tf.cast(tf.equal(result, tf.cast(Y, tf.int64)), tf.float32))
+        accuracy_ret = sess.run(accuracy, feed_dict={Y: test_dataset.target_batch})
+
+        print('Accuracy =', '{:.6f}'.format(accuracy_ret))
+
+        prediction_output_mat = []
+        target_output_mat = []
+
+        for index, predict_sequence in enumerate(result):
+            target_output, prediction_output = data.compare_sentence(self.output_char2vec,
+                                                                     test_dataset.target_batch[index],
+                                                                     test_dataset.input_source[index],
+                                                                     predict_sequence)
+
             print("target sentence:    ", target_output[1])
             print("prediction sentence:", prediction_output[1])
 
