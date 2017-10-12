@@ -6,8 +6,8 @@ import models.seq2seq as s2s
 import models.modelbase as base
 
 
-text = data.read_data("data/training/4BH00005.txt", 50)
-# text = data.read_large_data("data")
+# text = data.read_data("data/training/4BH00005.txt", 50)
+text = data.read_large_data("data/training")
 
 dic_size = 100
 input_chars = data.make_input_dic(text, dic_size)
@@ -21,7 +21,7 @@ output_size = output_char2vec.size
 # make and run multi layer LSTM network
 hidden_size = 128
 
-rnn_config = base.ModelConfiguration(input_size, hidden_size, output_size, epoch=500)
+rnn_config = base.ModelConfiguration(input_size, hidden_size, output_size, epoch=1000)
 
 multi_rnn = rnns.MultiLayerLSTM(rnn_config, char2vec, output_char2vec, text, seq_length=100, type="multi")
 bidir_rnn = rnns.MultiLayerLSTM(rnn_config, char2vec, output_char2vec, text, seq_length=100, type="bimul")

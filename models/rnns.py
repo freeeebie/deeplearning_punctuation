@@ -2,6 +2,7 @@ import tensorflow as tf
 import utils
 import data
 import models.modelbase as base
+import time
 
 class MultiLayerLSTM(base.ModelBase):
     def __init__(self, modelconfig, char2vec=None, output_char2vec=None, input=None, seq_length=100, type="multi"):
@@ -25,11 +26,11 @@ class MultiLayerLSTM(base.ModelBase):
         hidden_size = self.modelconfig.hidden_size
 
         X = tf.placeholder(tf.int32, [None, self.seq_length])  # X data
+        X_one_hot = tf.one_hot(X, self.modelconfig.input_size)  # one hot: 1 -> 0 1 0 0 0 0 0 0 0 0
+
         Y = tf.placeholder(tf.int32, [None, self.seq_length])  # Y label
 
         Seqlen = tf.placeholder(tf.int32, [None])
-
-        X_one_hot = tf.one_hot(X, self.modelconfig.input_size)  # one hot: 1 -> 0 1 0 0 0 0 0 0 0 0
 
         keep_prob = tf.placeholder(tf.float32)
 
@@ -67,6 +68,7 @@ class MultiLayerLSTM(base.ModelBase):
 
         print('------------ Training ------------ ')
         for epoch in range(self.modelconfig.epoch):
+            last_time = time.time()
             _, loss = sess.run([optimizer, cost], feed_dict={X: input_batch,
                                                              Y: target_batch,
                                                              Seqlen: seq_lens,
@@ -84,7 +86,8 @@ class MultiLayerLSTM(base.ModelBase):
 
                 print('Epoch:', '%04d  ' % (epoch + 1),
                       'accuracy =', '{:.6f}  '.format(accuracy_ret),
-                      'cost =', '{:.6f}'.format(loss))
+                      'cost =', '{:.6f}'.format(loss),
+                      'speed =', '{:.2f}'.format(time.time() - last_time), 'sec')
 
                 for index, predict_sequence in enumerate(result):
                     target_output, prediction_output = data.compare_sentence(self.output_char2vec,
