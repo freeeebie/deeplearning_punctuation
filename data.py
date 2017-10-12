@@ -1,5 +1,7 @@
 from bs4 import BeautifulSoup
 import operator
+import glob
+import os
 
 class DataSet():
     def __init__(self, input_batch, input_source, target_batch, seq_lens):
@@ -8,27 +10,41 @@ class DataSet():
         self.target_batch = target_batch
         self.seq_lens = seq_lens
 
-def read_data(path):
-    doc = BeautifulSoup(open(path,'rb'), 'html.parser')
+def read_data(filename, max_para=None):
+    doc = BeautifulSoup(open(filename,'rb'), 'html.parser')
     count = 0
     data = []
+    doc = doc.find('body')
     for x in doc.findAll('p'):
         count = count + 1
         for y in x.getText():
             data.append(y)
         data.append(' ')
-        if count == 50:
-            break
-    print("length of paragraph: ", count)
+        count = count + 1
+
+        if max_para != None:
+            if count == max_para:
+                break
+    print("length of paragraph: ", count, " characters: ", len(data))
     return data
+
+def read_large_data(path):
+    filenames = glob.glob(os.path.join(path, '*.txt'))
+    print(filenames)
+    data = []
+    for filename in filenames:
+        data = data + read_data(filename)
+
+    print("total characters: ", len(data))
+    return data
+
 
 def extract_punc(string_input, input_chars, output_chars):
     input_source = []
     output_source = []
     input_length = len(string_input)
     i = 0
-    # print(input_length)
-    # print(string_input, input_chars, output_chars)
+
     while i < input_length:
         char = string_input[i]
 
@@ -72,16 +88,14 @@ def get_sorted_char_map(data):
     sorted_char_map = sorted(char_map.items(), key=operator.itemgetter(1), reverse=True)
     return sorted_char_map
 
-def make_dic(data, dic_size = 50):
+def make_input_dic(data, dic_size = 50):
     sorted_char_map = get_sorted_char_map(data)
 
     input_chars = []
     for i in range(min(dic_size ,len(sorted_char_map))):
         input_chars.append((sorted_char_map[i])[0])
-    # print(input_chars)
 
-    output_chars = ['<nop>', ',', '.']
-    return input_chars, output_chars
+    return input_chars
 
 def make_sequences(input_data, char2vec, output_char2vec, seq_length, make_valid=True, modeltype=None):
     total_frames = 1 if (len(input_data) < seq_length) else int(len(input_data) / seq_length) + 1
@@ -132,14 +146,12 @@ def make_sequences(input_data, char2vec, output_char2vec, seq_length, make_valid
                 diff = seq_length - len(x)
                 for _ in range(diff):
                     x.append(0)
-                    # input_str.append(' ')
             if len(y) != seq_length:
                 diff = seq_length - len(y)
                 for _ in range(diff):
                     y.append(0)
                     input_str.append(' ')
 
-            # print(y)
             input_batch.append(x)
             target_batch.append(y)
 
@@ -148,6 +160,15 @@ def make_sequences(input_data, char2vec, output_char2vec, seq_length, make_valid
         else:
             valid_dataset = DataSet(input_batch, input_source, target_batch, seqlens)
     return training_dataset, valid_dataset
+
+def compare_sentence(output_char2vec, target, input_source, prediction):
+    prediction_output = ([output_char2vec.r_char_dict[c] for c in prediction])
+    target_output = ([output_char2vec.r_char_dict[c] for c in target])
+
+    prediction_output_str = apply_punc("".join(input_source), prediction_output)
+    target_output_str = apply_punc("".join(input_source), target_output)
+
+    return (target_output, target_output_str), (prediction_output, prediction_output_str)
 
 if __name__ == "__main__":
     data = list("5보다 작은 자연수는 1, 2, 3, 4이다.")

@@ -132,7 +132,6 @@ class Seq2Seq(base.ModelBase):
                                                     Seqlen: valid_dataset.seq_lens,
                                                     keep_prob: 1}))
 
-
                 result_output_mat = []
                 target_output_mat = []
 
