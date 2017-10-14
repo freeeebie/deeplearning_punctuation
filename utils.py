@@ -22,37 +22,59 @@ class Char2Vec():
             self.allow_unknown = False
 
 class Evaluation():
-    def __init__(self, model_name, max_epoch=1, epoch_unit=1, accuracy=[], cost=[], speed=[], precision=[], recall=[], fscore=[]):
+    def __init__(self, model_name, max_epoch=1, epoch_unit=1, accuracy=None, cost=None, speed=None, precision=None,
+                 recall=None, fscore=None):
         self.model_name = model_name
-        self.epoch_unit = epoch_unit
         self.max_epoch = max_epoch
-        self.accuracy = accuracy
-        self.cost = cost
-        self.speed = speed
-        self.precision = precision
-        self.recall = recall
-        self.fscore = fscore
+        self.epoch_unit = epoch_unit
+
+        if accuracy is None:
+            self.accuracy = list()
+        else:
+            self.accuracy = accuracy
+        if cost is None:
+            self.cost = list()
+        else:
+            self.cost = cost
+        if speed is None:
+            self.speed = list()
+        else:
+            self.speed = speed
+        if precision is None:
+            self.precision = list()
+        else:
+            self.precision = precision
+        if recall is None:
+            self.recall = list()
+        else:
+            self.recall = recall
+        if fscore is None:
+            self.fscore = list()
+        else:
+            self.fscore = fscore
+
         self.totalcnt = self.max_epoch / self.epoch_unit
         self.total = {'acc': self.accuracy, 'cost': self.cost,
                       'speed': self.speed, 'prec': self.precision,
                       'recall': self.recall, 'fscore': self.fscore}
         self.average = {}
 
-    def set(self, accuracy, cost, speed, precision, recall, fscore):
-        self.accuracy.append(accuracy)
-        self.cost.append(cost)
-        self.speed.append(speed)
-        self.precision.append(precision)
-        self.recall.append(recall)
-        self.fscore.append(fscore)
+    def set(self, epoch, accuracy, cost, speed, precision, recall, fscore):
+        self.accuracy.append((epoch,accuracy))
+        self.cost.append((epoch,cost))
+        self.speed.append((epoch,speed))
+        self.precision.append((epoch,precision))
+        self.recall.append((epoch,recall))
+        self.fscore.append((epoch,fscore))
 
     def get_avg(self):
-        for factor in self.total.keys():
-            if self.total[factor] is not None:
-                print(sum(self.total[factor]) / self.totalcnt)
-                self.average[factor] = sum(self.total[factor]) / self.totalcnt
-            else:
-                self.average[factor] = 0
+        pass
+        # for factor in self.total.keys():
+        #     if self.total[factor] is not None:
+        #         print(sum(self.total[factor]) / self.totalcnt)
+        #         self.average[factor] = sum(self.total[factor]) / self.totalcnt
+        #     else:
+        #         self.average[factor] = 0
 
 def get_pricision_recall_fscore(targets, predictions, label):
     total_cnt = len(targets)

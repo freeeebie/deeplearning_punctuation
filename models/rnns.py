@@ -12,11 +12,6 @@ class MultiLayerLSTM(base.ModelBase):
         tf.reset_default_graph()
 
     def run(self):
-        if type == "multi":
-            print('****** MultiLayer LSTM Initialize ******')
-        elif type == "bimul":
-            print('****** Bidirectional LSTM Initialize ******')
-
         training_dataset, valid_dataset = data.make_sequences(self.input, self.char2vec, self.output_char2vec, self.seq_length)
 
         input_batch = training_dataset.input_batch
@@ -30,11 +25,13 @@ class MultiLayerLSTM(base.ModelBase):
 
         Y = tf.placeholder(tf.int32, [None, self.seq_length])  # Y label
 
-        Seqlen = tf.placeholder(tf.int32, [None])
+        Sequences = tf.placeholder(tf.int32, [None])
 
         keep_prob = tf.placeholder(tf.float32)
 
-        if self.type != "multi":
+        if self.type == "multi":
+            print('\n****** MultiLayer LSTM Initialize ******')
+
             with tf.variable_scope('cell_def'):
                 cell1 = tf.nn.rnn_cell.BasicLSTMCell(num_units=hidden_size, state_is_tuple=True)
                 cell1 = tf.nn.rnn_cell.DropoutWrapper(cell1, output_keep_prob=keep_prob)
@@ -44,9 +41,11 @@ class MultiLayerLSTM(base.ModelBase):
 
             with tf.variable_scope('rnn_def'):
                 outputs, _states = tf.nn.dynamic_rnn(
-                    multi_cell, X_onehot,  dtype=tf.float32, sequence_length=Seqlen)
+                    multi_cell, X_onehot,  dtype=tf.float32, sequence_length=Sequences)
 
-        elif self.type != "bimul":
+        elif self.type == "bimul":
+            print('\n****** Bidirectional LSTM Initialize ******')
+
             with tf.variable_scope('cell_def'):
                 forward = tf.nn.rnn_cell.BasicLSTMCell(num_units=hidden_size, state_is_tuple=True)
                 forward = tf.nn.rnn_cell.DropoutWrapper(forward, output_keep_prob=keep_prob)
@@ -54,7 +53,7 @@ class MultiLayerLSTM(base.ModelBase):
                 backward = tf.nn.rnn_cell.DropoutWrapper(backward, output_keep_prob=keep_prob)
 
             with tf.variable_scope('rnn_def'):
-                outputs, states = tf.nn.bidirectional_dynamic_rnn(forward, backward, inputs=X_onehot, dtype=tf.float32, sequence_length=Seqlen)
+                outputs, states = tf.nn.bidirectional_dynamic_rnn(forward, backward, inputs=X_onehot, dtype=tf.float32, sequence_length=Sequences)
                 outputs = tf.concat(values=outputs, axis=2)
 
         model = tf.layers.dense(outputs, self.modelconfig.output_size, activation=None)
@@ -69,18 +68,18 @@ class MultiLayerLSTM(base.ModelBase):
 
         eval = utils.Evaluation(self.type, self.modelconfig.epoch, 25)
 
-        print('------------ Training ------------ ')
+        print('\n------------ Training ------------ ')
         last_time = time.time()
         for epoch in range(self.modelconfig.epoch):
 
             _, loss = sess.run([optimizer, cost], feed_dict={X: input_batch,
                                                              Y: target_batch,
-                                                             Seqlen: seq_lens,
+                                                             Sequences: seq_lens,
                                                              keep_prob: 0.8})
             if epoch % 25 == 24:
                 result = sess.run(prediction, feed_dict={X: valid_dataset.input_batch,
                                                          Y: valid_dataset.target_batch,
-                                                         Seqlen: valid_dataset.seq_lens,
+                                                         Sequences: valid_dataset.seq_lens,
                                                          keep_prob: 1})
                 accuracy = tf.reduce_mean(tf.cast(tf.equal(result, tf.cast(Y, tf.int64)), tf.float32))
                 accuracy_ret = sess.run(accuracy, feed_dict={Y: valid_dataset.target_batch})
@@ -92,17 +91,16 @@ class MultiLayerLSTM(base.ModelBase):
                 last_time = time.time()
 
                 avg_p, avg_r, avg_f = utils.print_evaluation(valid_dataset.target_batch, result, self.output_char2vec.char_dict)
-                eval.set(accuracy_ret, loss, speed, avg_p, avg_r, avg_f)
+                eval.set(epoch, accuracy_ret, loss, speed, avg_p, avg_r, avg_f)
                 print('')
-        eval_dict = eval.get_avg()
 
-        print('------------ Testing ------------ ')
+        print('\n------------ Testing ------------ ')
         test_sentences = data.read_data("data/test/BHXX0035.txt", 30)
         test_dataset, _ = data.make_sequences(test_sentences, self.char2vec, self.output_char2vec, self.seq_length, make_valid=False)
 
         result = sess.run(prediction, feed_dict={X: test_dataset.input_batch,
                                                       Y: test_dataset.target_batch,
-                                                      Seqlen: test_dataset.seq_lens,
+                                                      Sequences: test_dataset.seq_lens,
                                                       keep_prob: 1})
 
         accuracy = tf.reduce_mean(tf.cast(tf.equal(result, tf.cast(Y, tf.int64)), tf.float32))
@@ -115,5 +113,7 @@ class MultiLayerLSTM(base.ModelBase):
                                                                      test_dataset.target_batch[index],
                                                                      test_dataset.input_source[index],
                                                                      predict_sequence)
-            print("target sentence:    ", target_output[1])
-            print("prediction sentence:", prediction_output[1])
+            if index < 2:
+                print("target sentence:    ", target_output[1])
+                print("prediction sentence:", prediction_output[1])
+        return eval
