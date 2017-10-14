@@ -30,7 +30,6 @@ def read_data(filename, max_para=None):
 
 def read_large_data(path):
     filenames = glob.glob(os.path.join(path, '*.txt'))
-    print(filenames)
     data = []
     for filename in filenames:
         data = data + read_data(filename)

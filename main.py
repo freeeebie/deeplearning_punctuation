@@ -6,12 +6,12 @@ import models.seq2seq as s2s
 import models.modelbase as base
 
 
-# text = data.read_data("data/training/4BH00005.txt", 50)
-text = data.read_large_data("data/training")
+text = data.read_data("data/training/4BH00005.txt", 100)
+# text = data.read_large_data("data/training")
 
 dic_size = 100
 input_chars = data.make_input_dic(text, dic_size)
-output_chars = ['<nop>', ',', '.']
+output_chars = ['<nop>', '.', ',']
 
 char2vec = utils.Char2Vec(chars=input_chars, add_unknown=True)
 output_char2vec = utils.Char2Vec(chars=output_chars)

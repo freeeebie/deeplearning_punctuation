@@ -4,7 +4,7 @@ import models.rnns as rnns
 import models.seq2seq as s2s
 
 import models.modelbase as base
-
+import time
 
 text = data.read_data("data/training/4BH00005.txt", 50)
 # text = data.read_large_data("data/training")
@@ -24,7 +24,7 @@ hidden_size = 128
 import tensorflow as tf
 
 seq_length = 100
-modelconfig = base.ModelConfiguration(input_size, hidden_size, output_size, epoch=500)
+modelconfig = base.ModelConfiguration(input_size, hidden_size, output_size, epoch=100)
 type = "multi"
 
 if type == "multi":
@@ -32,7 +32,7 @@ if type == "multi":
 elif type == "bimul":
     print('****** Bidirectional LSTM Initialize ******')
 
-training_dataset, valid_dataset = data.make_sequences(input, char2vec, output_char2vec, seq_length)
+training_dataset, valid_dataset = data.make_sequences(text, char2vec, output_char2vec, seq_length)
 
 input_batch = training_dataset.input_batch
 target_batch = training_dataset.target_batch
@@ -82,8 +82,12 @@ optimizer = tf.train.AdamOptimizer(learning_rate=0.001).minimize(cost)
 sess = tf.Session()
 sess.run(tf.global_variables_initializer())
 
+eval = utils.Evaluation(type, modelconfig.epoch, 25)
+
 print('------------ Training ------------ ')
+last_time = time.time()
 for epoch in range(modelconfig.epoch):
+
     _, loss = sess.run([optimizer, cost], feed_dict={X: input_batch,
                                                      Y: target_batch,
                                                      Seqlen: seq_lens,
@@ -95,29 +99,19 @@ for epoch in range(modelconfig.epoch):
                                                  keep_prob: 1})
         accuracy = tf.reduce_mean(tf.cast(tf.equal(result, tf.cast(Y, tf.int64)), tf.float32))
         accuracy_ret = sess.run(accuracy, feed_dict={Y: valid_dataset.target_batch})
-
-        prediction_output_mat = []
-        target_output_mat = []
-
+        speed = time.time() - last_time
         print('Epoch:', '%04d  ' % (epoch + 1),
               'accuracy =', '{:.6f}  '.format(accuracy_ret),
-              'cost =', '{:.6f}'.format(loss))
+              'cost =', '{:.6f}'.format(loss),
+              'speed =', '{:.2f}'.format(speed), 'sec')
+        last_time = time.time()
 
-        for index, predict_sequence in enumerate(result):
-            target_output, prediction_output = data.compare_sentence(output_char2vec,
-                                                                     valid_dataset.target_batch[index],
-                                                                     valid_dataset.input_source[index],
-                                                                     predict_sequence)
-            prediction_output_mat.append(prediction_output[0])
-            target_output_mat.append(target_output[0])
-
-        utils.print_pc_matrix(prediction_output_mat, target_output_mat)
-        if epoch == modelconfig.epoch - 1:
-            print("target sentence:    ", target_output[1])
-            print("prediction sentence:", prediction_output[1])
+        avg_p, avg_r, avg_f = utils.print_evaluation(valid_dataset.target_batch, result, output_char2vec.char_dict)
+        eval.set(accuracy_ret, loss, speed, avg_p, avg_r, avg_f)
         print('')
+eval_dict = eval.get_avg()
 
-print('------------ Training ------------ ')
+print('------------ Testing ------------ ')
 test_sentences = data.read_data("data/test/BHXX0035.txt", 30)
 test_dataset, _ = data.make_sequences(test_sentences, char2vec, output_char2vec, seq_length,
                                       make_valid=False)
@@ -132,14 +126,10 @@ accuracy_ret = sess.run(accuracy, feed_dict={Y: test_dataset.target_batch})
 
 print('Accuracy =', '{:.6f}'.format(accuracy_ret))
 
-prediction_output_mat = []
-target_output_mat = []
-
 for index, predict_sequence in enumerate(result):
     target_output, prediction_output = data.compare_sentence(output_char2vec,
                                                              test_dataset.target_batch[index],
                                                              test_dataset.input_source[index],
                                                              predict_sequence)
-
     print("target sentence:    ", target_output[1])
     print("prediction sentence:", prediction_output[1])
