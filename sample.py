@@ -15,7 +15,6 @@ output_char2vec = utils.Char2Vec(chars=output_chars)
 input_size = char2vec.size
 output_size = output_char2vec.size
 
-
 import tensorflow as tf
 
 # make and run multi layer LSTM network
@@ -43,7 +42,6 @@ X_one_hot = tf.one_hot(X, modelconfig.input_size)  # one hot: 1 -> 0 1 0 0 0 0 0
 Y = tf.placeholder(tf.int32, [None, seq_length])  # Y label
 
 Sequences = tf.placeholder(tf.int32, [None])
-
 keep_prob = tf.placeholder(tf.float32)
 
 if type == "multi":
@@ -110,7 +108,6 @@ for epoch in range(modelconfig.epoch):
         avg_p, avg_r, avg_f = utils.print_evaluation(valid_dataset.target_batch, result, output_char2vec.char_dict)
         eval.set(epoch, accuracy_ret, loss, speed, avg_p, avg_r, avg_f)
         print('')
-# eval_dict = eval.get_avg()
 
 print('\n------------ Testing ------------ ')
 test_sentences = data.read_data("data/test/BHXX0035.txt", 30)
